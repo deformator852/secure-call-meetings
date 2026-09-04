@@ -251,6 +251,7 @@ Do not claim that the server knows nothing. It knows the roster, nicknames, and 
 - [ ] Waiting room and host approval
 - [ ] Mesh calls with up to four participants
 - [ ] DataChannel chat
+- [ ] Optional voice changer with an off state and a selectable list of voice effects
 - [ ] Encryption status
 - [ ] Denied, full, and ended states
 - [ ] Docker Compose and optional coturn
@@ -281,4 +282,5 @@ The full product is complete when an unapproved guest cannot receive media, thre
 7. Lobby, nickname, waiting room, and host approval.
 8. Three-to-four-person mesh.
 9. DataChannel chat.
-10. Docker, TURN, security copy, and open-source project files.
+10. Optional voice changer with effect selection.
+11. Docker, TURN, security copy, and open-source project files.
