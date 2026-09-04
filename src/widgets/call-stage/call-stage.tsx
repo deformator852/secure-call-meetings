@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,16 @@ export function CallStage({ roomId }: CallStageProps) {
     micOn,
     camOn,
     mediaError,
+    join,
     toggleMic,
     toggleCam,
     leave,
   } = useCallSession(roomId);
+  const [isSecure, setIsSecure] = useState(true);
+
+  useEffect(() => {
+    setIsSecure(window.isSecureContext);
+  }, []);
 
   const copyLink = async () => {
     try {
@@ -34,15 +41,6 @@ export function CallStage({ roomId }: CallStageProps) {
       toast.error("Не удалось скопировать ссылку");
     }
   };
-
-  if (phase === "media-error") {
-    return (
-      <CallEndedState
-        title="Нет доступа к медиа"
-        description={mediaError ?? "Разрешите камеру и микрофон в браузере."}
-      />
-    );
-  }
 
   if (phase === "full") {
     return (
@@ -62,8 +60,32 @@ export function CallStage({ roomId }: CallStageProps) {
     );
   }
 
+  if (phase === "idle") {
+    return (
+      <div className="flex min-h-full flex-1 flex-col items-center justify-center px-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">Подключение к звонку</h1>
+        <p className="mt-3 max-w-md text-sm text-muted-foreground">
+          Нажмите кнопку — браузер запросит камеру и микрофон. На телефоне это
+          работает только по HTTPS (если открыли http, вас должно перекинуть).
+        </p>
+        {!isSecure ? (
+          <p className="mt-3 max-w-md text-sm text-destructive">
+            Сейчас страница небезопасная. Откройте адрес с https:// и портом 3443.
+          </p>
+        ) : null}
+        <Button
+          size="lg"
+          className="mt-8 h-12 touch-manipulation px-6"
+          onClick={() => void join()}
+        >
+          Включить камеру и войти
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-background">
+    <div className="flex min-h-dvh flex-1 flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border/60 px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium tracking-tight">Дзвінок за лінком</span>
@@ -81,7 +103,7 @@ export function CallStage({ roomId }: CallStageProps) {
             muted
             mirrored
             label="Вы"
-            placeholder={phase === "connecting" ? "Включаем камеру…" : "Нет видео"}
+            placeholder={mediaError ?? (phase === "connecting" ? "Подключаемся…" : "Нет видео")}
           />
           <VideoTile
             stream={remote?.stream}
@@ -91,7 +113,8 @@ export function CallStage({ roomId }: CallStageProps) {
         </div>
       </main>
 
-      <footer className="flex flex-col items-center gap-3 px-4 pb-8">
+      <footer className="flex flex-col items-center gap-3 px-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
+        {mediaError ? <p className="text-sm text-destructive">{mediaError}</p> : null}
         {phase === "connecting" ? (
           <p className="text-sm text-muted-foreground">Подключаемся к комнате…</p>
         ) : null}
@@ -103,7 +126,13 @@ export function CallStage({ roomId }: CallStageProps) {
           onCopyLink={() => void copyLink()}
           onLeave={leave}
         />
-        <Button type="button" variant="ghost" size="sm" onClick={() => void copyLink()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="lg"
+          className="touch-manipulation"
+          onClick={() => void copyLink()}
+        >
           Скопировать ссылку
         </Button>
       </footer>

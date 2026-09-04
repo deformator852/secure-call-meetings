@@ -20,10 +20,8 @@ export function getSignalingUrl(): string {
     return process.env.NEXT_PUBLIC_SIGNALING_URL;
   }
   if (typeof window === "undefined") {
-    return "ws://localhost:3001";
+    return "ws://localhost:3000/ws";
   }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.hostname;
-  const port = process.env.NEXT_PUBLIC_SIGNALING_PORT ?? "3001";
-  return `${protocol}//${host}:${port}`;
+  return `${protocol}//${window.location.host}/ws`;
 }

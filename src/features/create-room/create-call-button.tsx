@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { createId } from "@/shared/lib/id";
 
 export function CreateCallButton() {
   const router = useRouter();
@@ -10,12 +11,11 @@ export function CreateCallButton() {
 
   const create = () => {
     setPending(true);
-    const roomId = crypto.randomUUID();
-    router.push(`/r/${roomId}`);
+    router.push(`/r/${createId()}`);
   };
 
   return (
-    <Button size="lg" onClick={create} disabled={pending}>
+    <Button size="lg" className="h-12 touch-manipulation px-6" onClick={create} disabled={pending}>
       {pending ? "Создаём…" : "Создать звонок"}
     </Button>
   );

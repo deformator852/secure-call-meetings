@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n web,signal -c cyan,magenta \"next dev --turbopack\" \"tsx watch server/signaling.ts\"",
-    "dev:web": "next dev --turbopack",
-    "dev:signal": "tsx watch server/signaling.ts",
+    "dev": "concurrently -k -n web,https -c cyan,magenta \"next dev --turbopack --hostname 0.0.0.0\" \"tsx server/https-gateway.ts\"",
+    "dev:web": "next dev --turbopack --hostname 0.0.0.0",
     "build": "next build",
-    "start": "concurrently -k -n web,signal \"next start\" \"tsx server/signaling.ts\"",
+    "start": "concurrently -k -n web,https \"next start --hostname 0.0.0.0\" \"tsx server/https-gateway.ts\"",
+    "expose-lan": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/expose-lan.ps1",
     "lint": "eslint"
   },
   "dependencies": {

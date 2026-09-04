@@ -29,6 +29,12 @@ export function LandingHero() {
       <div className="mt-8">
         <CreateCallButton />
       </div>
+      <p className="mt-6 max-w-xl text-sm leading-6 text-zinc-500">
+        С телефона:{" "}
+        <code className="font-mono text-zinc-400">https://192.168.31.96:3443</code>
+        . Если браузер ругается на сертификат — «Дополнительно» и продолжить.
+        Не используйте <code className="font-mono text-zinc-400">10.255.255.254</code>.
+      </p>
       <div className="mt-16 grid gap-6 border-t border-border/60 pt-10 md:grid-cols-3">
         {points.map((point) => (
           <div key={point.title}>

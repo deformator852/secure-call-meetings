@@ -1,3 +1,3 @@
 export type RoomId = string;
 
-export type CallPhase = "connecting" | "in-call" | "ended" | "full" | "media-error";
+export type CallPhase = "idle" | "connecting" | "in-call" | "ended" | "full";
