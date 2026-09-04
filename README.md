@@ -1,43 +1,43 @@
-# Дзвінок за лінком
+# Call by Link
 
-Открыл ссылку — сразу видеозвонок. Второй заходит по тому же URL. Без регистрации: комната = id в адресе.
+Open a link and start a video call. The other person joins through the same URL. No registration: the room is the ID in the address.
 
-Стек: Next.js, TypeScript, WebRTC, Tailwind, shadcn/ui. Тёмная тема в духе Vercel.
+Stack: Next.js, TypeScript, WebRTC, Tailwind, and shadcn/ui. Dark Vercel-style interface.
 
-Полная спека (MVP и полный продукт): [docs/PRODUCT.md](./docs/PRODUCT.md).
+See the complete MVP and full-product specification in [docs/PRODUCT.md](./docs/PRODUCT.md).
 
-## Запуск MVP
+## Run the MVP
 
-Нужны Node.js 20+ и камера/микрофон в браузере.
+Requires Node.js 20+ and browser access to a camera and microphone.
 
 ```bash
 npm install
 npm run dev
 ```
 
-С компьютера: [http://localhost:3000](http://localhost:3000)
+On the computer: [http://localhost:3000](http://localhost:3000)
 
-- HTTP: порт `3000`
-- HTTPS (телефон, камера): порт `3443`
-- Signaling: тот же origin, SSE + POST на `/signal`
+- HTTP: port `3000`
+- HTTPS for mobile camera access: port `3443`
+- Signaling: same-origin SSE + POST at `/signal`
 
-### Телефон в той же Wi‑Fi
+### Phone on the same Wi-Fi
 
-Не открывайте `http://10.255.255.254:3000` — это WSL, с телефона его нет.
+Do not open `http://10.255.255.254:3000`; it is an internal WSL address and is not reachable from the phone.
 
-1. Перезапустите `npm run dev`.
-2. Один раз от администратора: `powershell -ExecutionPolicy Bypass -File .\scripts\expose-lan.ps1`
-3. На телефоне: **https://192.168.31.96:3443** (или откройте `http://192.168.31.96:3000` — мобильный браузер перекинет на HTTPS).
-4. Предупреждение про сертификат: «Дополнительно» → перейти на сайт. На iPhone сертификат нужно доверить в Настройках.
-5. Создайте звонок уже с этого адреса и нажмите **Включить камеру и войти**.
+1. Restart with `npm run dev`.
+2. Run once from an elevated PowerShell: `powershell -ExecutionPolicy Bypass -File .\scripts\expose-lan.ps1`
+3. On the phone, open **https://192.168.31.96:3443**. Opening `http://192.168.31.96:3000` redirects mobile browsers to HTTPS.
+4. On the certificate warning, choose **Advanced** and continue. On iPhone, the certificate may also need to be trusted in Settings.
+5. Create or open a room from this address and press **Enable camera and join**.
 
-Камера на телефоне не работает по обычному `http://` — это ограничение браузера, не сети.
+Mobile browsers do not allow camera access over plain HTTP. This is a browser security restriction, not a network issue.
 
-Переменные (необязательно):
+Optional environment variables:
 
 ```bash
 NEXT_PUBLIC_STUN_URLS=stun:stun.l.google.com:19302
 HTTPS_PORT=3443
 ```
 
-Аккаунтов нет. Медиа идёт P2P (DTLS-SRTP). Signaling только обменивает SDP/ICE и живёт в памяти процесса.
+There are no accounts. Media travels peer-to-peer over DTLS-SRTP. Signaling only exchanges SDP/ICE and is stored in process memory.

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,26 +26,20 @@ export function CallStage({ roomId }: CallStageProps) {
     toggleCam,
     leave,
   } = useCallSession(roomId);
-  const [isSecure, setIsSecure] = useState(true);
-
-  useEffect(() => {
-    setIsSecure(window.isSecureContext);
-  }, []);
-
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      toast.success("Ссылка скопирована");
+      toast.success("Link copied");
     } catch {
-      toast.error("Не удалось скопировать ссылку");
+      toast.error("Could not copy the link");
     }
   };
 
   if (phase === "full") {
     return (
       <CallEndedState
-        title="Комната занята"
-        description="В MVP звонок только 1:1. Создайте новую ссылку."
+        title="Room is full"
+        description="The MVP supports one-to-one calls only. Create a new link."
       />
     );
   }
@@ -54,8 +47,8 @@ export function CallStage({ roomId }: CallStageProps) {
   if (phase === "ended") {
     return (
       <CallEndedState
-        title="Звонок завершён"
-        description="Организатор вышел или вы покинули комнату."
+        title="Call ended"
+        description="The host left, or you left the room."
       />
     );
   }
@@ -63,22 +56,17 @@ export function CallStage({ roomId }: CallStageProps) {
   if (phase === "idle") {
     return (
       <div className="flex min-h-full flex-1 flex-col items-center justify-center px-6 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Подключение к звонку</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Join the call</h1>
         <p className="mt-3 max-w-md text-sm text-muted-foreground">
-          Нажмите кнопку — браузер запросит камеру и микрофон. На телефоне это
-          работает только по HTTPS (если открыли http, вас должно перекинуть).
+          Continue to let the browser request camera and microphone access.
+          Mobile browsers require HTTPS.
         </p>
-        {!isSecure ? (
-          <p className="mt-3 max-w-md text-sm text-destructive">
-            Сейчас страница небезопасная. Откройте адрес с https:// и портом 3443.
-          </p>
-        ) : null}
         <Button
           size="lg"
           className="mt-8 h-12 touch-manipulation px-6"
           onClick={() => void join()}
         >
-          Включить камеру и войти
+          Enable camera and join
         </Button>
       </div>
     );
@@ -88,8 +76,8 @@ export function CallStage({ roomId }: CallStageProps) {
     <div className="flex min-h-dvh flex-1 flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border/60 px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium tracking-tight">Дзвінок за лінком</span>
-          <Badge variant="outline">{role === "guest" ? "Гость" : "Организатор"}</Badge>
+          <span className="text-sm font-medium tracking-tight">Call by Link</span>
+          <Badge variant="outline">{role === "guest" ? "Guest" : "Host"}</Badge>
         </div>
         <code className="hidden font-mono text-xs text-muted-foreground sm:block">
           {roomId}
@@ -102,13 +90,13 @@ export function CallStage({ roomId }: CallStageProps) {
             stream={localStream}
             muted
             mirrored
-            label="Вы"
-            placeholder={mediaError ?? (phase === "connecting" ? "Подключаемся…" : "Нет видео")}
+            label="You"
+            placeholder={mediaError ?? (phase === "connecting" ? "Connecting…" : "No video")}
           />
           <VideoTile
             stream={remote?.stream}
-            label={role === "guest" ? "Организатор" : "Гость"}
-            placeholder="Ожидание гостя. Отправьте ссылку."
+            label={role === "guest" ? "Host" : "Guest"}
+            placeholder="Waiting for a guest. Share the link."
           />
         </div>
       </main>
@@ -116,7 +104,7 @@ export function CallStage({ roomId }: CallStageProps) {
       <footer className="flex flex-col items-center gap-3 px-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
         {mediaError ? <p className="text-sm text-destructive">{mediaError}</p> : null}
         {phase === "connecting" ? (
-          <p className="text-sm text-muted-foreground">Подключаемся к комнате…</p>
+          <p className="text-sm text-muted-foreground">Connecting to the room…</p>
         ) : null}
         <CallControls
           micOn={micOn}
@@ -133,7 +121,7 @@ export function CallStage({ roomId }: CallStageProps) {
           className="touch-manipulation"
           onClick={() => void copyLink()}
         >
-          Скопировать ссылку
+          Copy link
         </Button>
       </footer>
     </div>

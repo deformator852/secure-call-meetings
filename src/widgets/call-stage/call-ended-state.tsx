@@ -12,7 +12,7 @@ export function CallEndedState({ title, description }: CallEndedStateProps) {
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       <p className="mt-3 max-w-md text-sm text-muted-foreground">{description}</p>
       <Link href="/" className={buttonVariants({ className: "mt-8" })}>
-        На главную
+        Back home
       </Link>
     </div>
   );

@@ -20,14 +20,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Дзвінок за лінком",
-  description: "Видеозвонок по ссылке без регистрации",
+  title: "Call by Link",
+  description: "A video call through a link, with no registration",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="ru"
+      lang="en"
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >

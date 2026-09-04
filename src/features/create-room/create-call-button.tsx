@@ -16,7 +16,7 @@ export function CreateCallButton() {
 
   return (
     <Button size="lg" className="h-12 touch-manipulation px-6" onClick={create} disabled={pending}>
-      {pending ? "Создаём…" : "Создать звонок"}
+      {pending ? "Creating…" : "Create a call"}
     </Button>
   );
 }

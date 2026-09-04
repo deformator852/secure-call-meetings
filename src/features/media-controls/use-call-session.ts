@@ -16,12 +16,12 @@ type RemotePeer = {
 
 function mediaErrorMessage(error: unknown): string {
   if (error instanceof DOMException && error.name === "NotAllowedError") {
-    return "Нужен доступ к камере и микрофону";
+    return "Camera and microphone access is required";
   }
   if (typeof window !== "undefined" && !window.isSecureContext) {
-    return "Камера на телефоне работает только по HTTPS";
+    return "Mobile camera access requires HTTPS";
   }
-  return "Не удалось включить камеру";
+  return "Could not start the camera";
 }
 
 export function useCallSession(roomId: string) {
@@ -124,12 +124,13 @@ export function useCallSession(roomId: string) {
   }, [roomId]);
 
   useEffect(() => {
+    const media = localMedia.current;
     return () => {
       session.current?.dispose();
       session.current = undefined;
       signaling.current?.disconnect();
       signaling.current = undefined;
-      localMedia.current.stop();
+      media.stop();
     };
   }, []);
 

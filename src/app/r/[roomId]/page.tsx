@@ -12,8 +12,8 @@ export default async function RoomPage({
   if (!isUuid(roomId)) {
     return (
       <CallEndedState
-        title="Неверная ссылка"
-        description="Комната задаётся UUID в адресе. Создайте новый звонок с главной."
+        title="Invalid link"
+        description="A room requires a UUID in the URL. Create a new call from the home page."
       />
     );
   }

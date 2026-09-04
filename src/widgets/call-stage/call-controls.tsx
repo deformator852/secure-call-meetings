@@ -34,7 +34,7 @@ export function CallControls({
         variant={micOn ? "secondary" : "destructive"}
         size="icon-lg"
         className="touch-manipulation"
-        aria-label={micOn ? "Выключить микрофон" : "Включить микрофон"}
+        aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
         onClick={onToggleMic}
       >
         {micOn ? <Mic /> : <MicOff />}
@@ -44,7 +44,7 @@ export function CallControls({
         variant={camOn ? "secondary" : "destructive"}
         size="icon-lg"
         className="touch-manipulation"
-        aria-label={camOn ? "Выключить камеру" : "Включить камеру"}
+        aria-label={camOn ? "Turn camera off" : "Turn camera on"}
         onClick={onToggleCam}
       >
         {camOn ? <Video /> : <VideoOff />}
@@ -54,7 +54,7 @@ export function CallControls({
         variant="secondary"
         size="icon-lg"
         className="touch-manipulation"
-        aria-label="Скопировать ссылку"
+        aria-label="Copy link"
         onClick={onCopyLink}
       >
         <Copy />
@@ -64,7 +64,7 @@ export function CallControls({
         variant="destructive"
         size="icon-lg"
         className="touch-manipulation"
-        aria-label="Покинуть звонок"
+        aria-label="Leave call"
         onClick={onLeave}
       >
         <PhoneOff />

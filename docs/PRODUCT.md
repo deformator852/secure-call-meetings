@@ -1,105 +1,120 @@
-# Дзвінок за лінком — продукт и архитектура
+# Call by Link — Product and Architecture
 
-Мини-Whereby без регистрации: открыл URL — сразу комната. Второй заходит по тому же линку. Комната = `id` в URL. Аккаунтов нет. Репозиторий открытый, инстанс можно поднять у себя.
+A tiny Whereby without registration: open a URL and enter a room. A second person joins through the same link. The room is the `id` in the URL. There are no accounts. The project is open source and self-hostable.
 
-Стек: **Next.js (App Router) + TypeScript + WebRTC + Tailwind + shadcn/ui**. Дизайн: тёмная тема в духе Vercel (нейтральный zinc, тонкие бордеры, много воздуха, без декоративных градиентов).
+Stack: **Next.js App Router + TypeScript + WebRTC + Tailwind CSS + shadcn/ui**. The interface uses a dark Vercel-like style with neutral zinc colors, subtle borders, generous spacing, and no decorative gradients.
 
 ---
 
-## 1. Позиционирование
+## 1. Positioning
 
-| Есть | Нет |
+| Included | Not included |
 | --- | --- |
-| Ссылка = комната | Логин, OAuth, профили |
-| Хост апрувит гостей (полный продукт) | Календарь, запись, биллинг |
-| Ник перед входом (полный продукт) | Постоянное хранилище пользователей |
-| Чат в комнате (полный продукт) | Мобильные нативные приложения в v1 |
-| Self-host + OSS | Облачный «наш» SaaS как обязательная зависимость |
+| The link is the room | Login, OAuth, or profiles |
+| Host approval in the full product | Calendar, recording, or billing |
+| Nickname before joining in the full product | Persistent user storage |
+| In-room chat in the full product | Native mobile apps in v1 |
+| Open source and self-hostable | A mandatory hosted SaaS dependency |
 
-**Одна честная оговорка про «без бэкенда».** Медиа идёт P2P (WebRTC). Чтобы два браузера нашли друг друга, нужен **эфемерный signaling**: обмен SDP/ICE. Это не бэкенд аккаунтов и не БД пользователей — in-memory (или Redis при нескольких инстансах) живёт только пока комната активна. STUN (и опционально TURN) нужны для NAT. В доке и README это формулируется так: *no accounts, ephemeral signaling, optional TURN*.
+### What “no backend” actually means
 
-Шифрование медиа и data channel — **DTLS-SRTP** (стандарт WebRTC). Это транспортное E2E между пирами, не «наш» сервер не видит видео. Signaling (кто в комнате, SDP) на self-host инстансе виден оператору сервера — это нормально и нужно явно написать в UI/доке.
+Media travels peer-to-peer through WebRTC. Two browsers still need **ephemeral signaling** to exchange SDP and ICE data. This is not an account backend and does not require a user database. Room state lives in memory while the room is active, or in Redis when running multiple instances. STUN, and optionally TURN, are required for NAT traversal.
 
----
+The accurate product statement is: **no accounts, ephemeral signaling, optional TURN**.
 
-## 2. Пользовательские сценарии
-
-### 2.1 MVP — создать звонок и поговорить 1:1
-
-1. Открыть `/`.
-2. Нажать **Создать звонок**.
-3. Редирект на `/r/{roomId}`. Первый посетитель = **host**. Браузер запрашивает камеру и микрофон.
-4. На экране: своё видео, пустой слот «ожидание гостя», кнопка **Скопировать ссылку**.
-5. Второй открывает ту же ссылку, разрешает медиа, сразу подключается (в MVP без ника и без апрува).
-6. 1:1: локальное + удалённое видео, mute / камера / повесить трубку.
-7. Хост ушёл — комната помечается закрытой, гость видит «Звонок завершён». Гость ушёл — слот снова «ожидание».
-
-Вне скоупа MVP: ник, waiting room, чат, >2 участников, TURN UI, экраны настроек.
-
-### 2.2 Полный продукт
-
-1. **Создание:** как в MVP. Host сразу в комнате.
-2. **Ник:** любой, кто заходит по ссылке (включая host при первом заходе, если ещё не задан), видит лобби: поле ника (3–24 символа), превью камеры, **Войти**.
-3. **Апрув:** гость после лобби попадает в waiting room. Host видит карточку «X хочет войти» → Принять / Отклонить. Отклонённый видит отказ, ссылка для него больше не пускает в эту сессию (пока host не создаст новую комнату).
-4. **Несколько человек:** mesh до **4** участников (включая host). 5-й получает «комната заполнена». Mesh выбран сознательно: без SFU, self-host остаётся одним Next.js-процессом.
-5. **Чат:** панель справа (desktop) / sheet (mobile). Текст + системные события («Anna вошла»). Сообщения идут по WebRTC DataChannel, не через signaling-сервер как хранилище.
-6. **Шифрование в UI:** бейдж «DTLS-SRTP» / «канал зашифрован», коротко «медиа не проходит через сервер». Без фальшивого «military-grade» маркетинга.
-7. **Self-host:** Docker Compose: app + опциональный coturn. Env: `NEXT_PUBLIC_STUN_URLS`, `TURN_URL`, `TURN_USER`, `TURN_PASS`, `SIGNALING_REDIS_URL` (опционально).
+WebRTC encrypts media and data channels with **DTLS-SRTP**. The signaling operator can see room membership, nicknames, and SDP, but cannot see media sent directly between peers. This limitation must be explained honestly in the UI and documentation.
 
 ---
 
-## 3. Информационная архитектура и экраны
+## 2. User flows
 
-| Маршрут | Кто | Содержимое |
+### 2.1 MVP — create a one-to-one call
+
+1. Open `/`.
+2. Press **Create a call**.
+3. Navigate to `/r/{roomId}`. The first participant becomes the **host**.
+4. Press **Enable camera and join** and grant camera and microphone permission.
+5. The screen shows the local video, an empty guest tile, and **Copy link**.
+6. A second person opens the same link, grants media permission, and joins immediately.
+7. Both participants see local and remote video and can mute the microphone, disable the camera, copy the link, or leave.
+8. If the host leaves, the room closes and the guest sees **Call ended**. If the guest leaves, the host returns to the waiting state.
+
+Out of scope for the MVP: nicknames, waiting-room approval, chat, more than two participants, TURN configuration UI, and settings screens.
+
+### 2.2 Full product
+
+1. **Creation:** same as the MVP. The host enters the room first.
+2. **Nickname:** each participant sees a lobby with a 3–24 character nickname field and camera preview.
+3. **Approval:** a guest enters a waiting room. The host sees “X wants to join” and can accept or reject the request.
+4. **Multiple participants:** mesh topology for up to **four** people, including the host. A fifth participant sees **Room is full**.
+5. **Chat:** a right-side panel on desktop and a sheet on mobile. Text and system events travel over an ordered WebRTC DataChannel.
+6. **Encryption UI:** show a clear **DTLS-SRTP** status and explain that media does not pass through the signaling server.
+7. **Self-hosting:** Docker Compose with the app and optional coturn. Supported environment variables include `NEXT_PUBLIC_STUN_URLS`, `TURN_URL`, `TURN_USER`, `TURN_PASS`, and optional `SIGNALING_REDIS_URL`.
+
+---
+
+## 3. Information architecture
+
+| Route or state | Audience | Content |
 | --- | --- | --- |
-| `/` | все | Hero, CTA «Создать звонок», 3 тезиса (ссылка = комната, без аккаунтов, self-host), ссылка на GitHub |
-| `/r/[roomId]` | host / guest | оркестратор состояний ниже |
-| `/r/[roomId]` lobby | полный продукт | ник + превью медиа |
-| `/r/[roomId]` waiting | гость | «Ждём подтверждения от организатора» |
-| `/r/[roomId]` in-call | участники | сетка видео, контролы, чат, roster |
-| `/r/[roomId]` ended / denied / full | — | одно состояние, кнопка на главную |
+| `/` | Everyone | Hero, Create a call CTA, product benefits, source link |
+| `/r/[roomId]` | Host and guest | Room state orchestrator |
+| `lobby` | Full product | Nickname and media preview |
+| `waiting` | Guest | Waiting for host approval |
+| `in-call` | Participants | Video grid, controls, roster, and chat |
+| `ended`, `denied`, `full` | Participant | Status explanation and Back home action |
 
-**Состояния комнаты (клиент):** `lobby` → `requesting` → `in-call` | `denied` | `full` | `ended`.  
-MVP схлопывает `lobby` и `requesting`: сразу `in-call`.
+Full-product room states:
+
+`lobby` → `requesting` → `in-call` | `denied` | `full` | `ended`
+
+The MVP collapses `lobby` and `requesting` into a single explicit **Enable camera and join** action.
 
 ---
 
-## 4. Дизайн (Vercel-like, shadcn)
+## 4. Design
 
-- Тема по умолчанию **dark**. `next-themes`, class strategy. Цвета shadcn: `zinc` / `neutral`, accent — почти белая кнопка на чёрном (как Vercel CTA), destructive — красный только для «покинуть / отклонить».
-- Шрифт: **Geist** (или `next/font` Geist Sans + Geist Mono для room id).
-- Сетка: max-width лендинга ~1080px, комната — full viewport, видео в `aspect-video`, скругление `rounded-xl`, бордер `border-border/60`.
-- Компоненты shadcn: `Button`, `Input`, `Dialog`, `Sheet`, `Avatar`, `Badge`, `Tooltip`, `Separator`, `ScrollArea`, `DropdownMenu`, `Sonner` (тосты: «Ссылка скопирована»).
-- Не делать: градиентные фоны, неон, иллюстрации-стоки, цветные тени.
+- Dark mode is the default.
+- Use `next-themes` with class-based theming.
+- Use neutral shadcn zinc colors.
+- Primary actions are near-white on black; red is reserved for destructive actions.
+- Use Geist Sans and Geist Mono.
+- Landing content width is approximately 1080 px.
+- The call fills the viewport and video tiles use `aspect-video`, `rounded-xl`, and `border-border/60`.
+- Use shadcn components such as `Button`, `Input`, `Dialog`, `Sheet`, `Avatar`, `Badge`, `Tooltip`, `Separator`, `ScrollArea`, `DropdownMenu`, and `Sonner`.
+- Avoid gradients, neon effects, stock illustrations, and colored shadows.
 
-**Ключевые UI-блоки (виджеты, не страницы):**
+Key UI widgets:
 
 - `LandingHero`
 - `CreateCallButton`
-- `LobbyForm` (ник + превью)
+- `LobbyForm`
 - `WaitingRoom`
-- `JoinRequestList` (host)
-- `VideoTile` / `VideoGrid`
-- `CallControls` (mic, cam, copy link, chat, leave)
+- `JoinRequestList`
+- `VideoTile`
+- `VideoGrid`
+- `CallControls`
 - `PeerRoster`
-- `ChatPanel` / `ChatMessage`
+- `ChatPanel`
+- `ChatMessage`
 - `EncryptionBadge`
 - `CallEndedState`
 
 ---
 
-## 5. Компонентная архитектура и SOLID
+## 5. Component architecture and SOLID
 
-Слойность ближе к Feature-Sliced + портам (гексагоналка), без оверинжиниринга.
+The structure follows feature-oriented layering with ports and adapters:
 
-```
+```text
 src/
-  app/                          # маршруты, providers — тонкие
+  app/                          # routes and providers; keep pages thin
     page.tsx
     r/[roomId]/page.tsx
+    signal/route.ts
     layout.tsx
     globals.css
-  widgets/                      # сборка экрана из фич
+  widgets/                      # page-level composition
     landing/
     call-stage/
   features/
@@ -110,161 +125,160 @@ src/
     chat/
     host-approval/
   entities/
-    room/                       # типы Room, RoomId, Role
-    peer/                       # PeerId, Nickname, MediaState
-    message/                    # ChatMessage
+    room/
+    peer/
+    message/
   shared/
-    ui/                         # shadcn
-    config/                     # ice servers, limits
+    ui/
+    config/
     lib/
+    ports/
+    signaling/
   infrastructure/
-    signaling/                  # WebSocket клиент + серверный adapter
-    webrtc/                     # PeerConnection factory, transceiver
+    signaling/
+    media/
+    webrtc/
 ```
 
-### SOLID на практике
+### SOLID in practice
 
-| Принцип | Как соблюдаем |
+| Principle | Application |
 | --- | --- |
-| **S** | `VideoTile` только рендерит поток. `usePeerConnection` не знает про чат. `HostApproval` не трогает ICE. |
-| **O** | Новый транспорт signaling (WS → Redis pub/sub) через `ISignalingPort`, UI не меняется. |
-| **L** | `MeshMediaSession` и будущий `SfuMediaSession` реализуют один `IMediaSession`. |
-| **I** | Отдельные порты: `ISignalingPort`, `IMediaSession`, `ILocalMedia`, `IClipboard`. Не один `ICallGodObject`. |
-| **D** | Фичи зависят от портов. `infrastructure/webrtc` — единственное место с `RTCPeerConnection`. Тесты фич мокают порты. |
+| Single responsibility | `VideoTile` only renders a stream. Media negotiation and signaling remain outside React components. |
+| Open/closed | A different signaling or media implementation can satisfy the same port without changing UI features. |
+| Liskov substitution | `MeshMediaSession` and a future `SfuMediaSession` can implement the same `IMediaSession`. |
+| Interface segregation | Use focused `ISignalingPort`, `IMediaSession`, and `ILocalMedia` interfaces rather than one call service. |
+| Dependency inversion | Features depend on ports. `infrastructure/webrtc` is the only layer that owns `RTCPeerConnection`. |
 
-### Порты (контракты)
+### Core ports
 
 ```ts
 type RoomId = string;
 type PeerId = string;
 
 interface ILocalMedia {
-  start(constraints: MediaStreamConstraints): Promise<MediaStream>;
+  start(constraints?: MediaStreamConstraints): Promise<MediaStream>;
   stop(): void;
   setMic(on: boolean): void;
   setCam(on: boolean): void;
+  getStream(): MediaStream | undefined;
 }
 
 interface ISignalingPort {
-  connect(roomId: RoomId, meta: { nickname: string; role: "host" | "guest" }): void;
+  connect(roomId: RoomId, meta: { peerId: PeerId }): void;
   send(event: SignalingOutbound): void;
   subscribe(handler: (event: SignalingInbound) => void): () => void;
   disconnect(): void;
 }
 
 interface IMediaSession {
-  addPeer(peerId: PeerId, polite: boolean): void;
-  removePeer(peerId: PeerId): void;
   attachLocal(stream: MediaStream): void;
+  addPeer(peerId: PeerId, initiator: boolean): void;
+  removePeer(peerId: PeerId): void;
   getRemoteStream(peerId: PeerId): MediaStream | undefined;
-  sendChat(payload: string): void;
-  onChat(handler: (from: PeerId, payload: string) => void): () => void;
   dispose(): void;
 }
 ```
 
-Правило: **никакого `RTCPeerConnection` в React-компонентах**. Хуки (`useCallSession`, `useLocalMedia`) — адаптеры UI → порты.
-
-Perfect negotiation (polite/impolite) обязателен: host = impolite, guests = polite. Иначе glare на mesh.
+`RTCPeerConnection` must never appear in React components. Hooks such as `useCallSession` adapt the UI to these ports.
 
 ---
 
-## 6. Signaling и WebRTC
+## 6. Signaling and WebRTC
 
-### MVP (1:1)
+### MVP
 
-- Комната: `crypto.randomUUID()` на клиенте при создании, сразу navigation.
-- Signaling: Next.js не умеет WS из обычного serverless одинаково везде. Для self-host — **кастомный server** (`server.ts` + `socket.io` / `ws`) рядом с Next, или Route Handler только если деплой long-lived (не чистый Vercel serverless без Durable Objects).
-- Рекомендация для OSS self-host: **Node-сервер: Next + ws**. Комнаты = `Map<RoomId, RoomState>` в памяти. TTL пустой комнаты 10 минут.
-- ICE: публичный STUN Google по умолчанию; TURN — env.
+- Generate room and peer IDs with `crypto.randomUUID()` when available, with a UUID fallback for older or insecure contexts.
+- Signaling uses same-origin SSE and POST at `/signal`.
+- Active rooms are held in an in-memory `RoomHub`.
+- HTTPS development access is exposed on port `3443` for mobile camera permission.
+- Google public STUN is the default; TURN is configured through environment variables later.
+- Use `addTransceiver("audio" | "video", { direction: "sendrecv" })`.
 
-Сообщения signaling (минимальный набор):
+Minimal signaling messages:
 
-```
-hello { peerId, role, nickname? }
-join-request { peerId, nickname }      // полный продукт
-join-accept { peerId }
-join-reject { peerId }
+```text
+joined { role, peers }
+peer-joined { peerId, role }
 peer-left { peerId }
 offer / answer / ice { to, from, payload }
 room-full
 room-closed
 ```
 
-Медиа: `addTransceiver('video'|'audio', { direction: 'sendrecv' })`.  
-Чат (полный продукт): `RTCDataChannel` label `chat`, ordered.
+### Full product
 
-### Полный продукт (до 4 mesh)
+Each peer maintains `N - 1` connections. The signaling layer distributes the roster and only the host can send join approval.
 
-Каждый пир держит N−1 соединений. Signaling рассылает roster. Host единственный, кто шлёт `join-accept`.
-
-Ограничение 4 — продуктовое, не «пока так». В UI: «До 4 человек в комнате». SFU (LiveKit/mediasoup) — фаза 3, отдельный аддон, не в «полном v1».
+The four-person limit is intentional for mesh topology. An SFU such as LiveKit or mediasoup is a separate later phase.
 
 ---
 
-## 7. Безопасность
+## 7. Security
 
-| Угроза | Мера |
+| Threat | Mitigation |
 | --- | --- |
-| Угадывание комнаты | `crypto.randomUUID()` (122 бита). Не короткие коды в v1. |
-| Спам-джойны | Host approval (полный продукт). Rate-limit signaling по IP на инстансе. |
-| Подмена host | Первый `hello` в пустую комнату = host. Повторный host с тем же id отклоняется. Room id не даёт прав host после того, как host уже есть. |
-| XSS в чате/нике | Только текст, sanitize/escape, лимит длины. |
-| Утечка медиа на сервер | Сервер не проксирует RTP. Только signaling. |
-| TURN credentials | Только на self-host через env, не в публичном клиентском репо с секретами. |
-| Перехват signaling | HTTPS/WSS обязателен в проде. Документировать: оператор сервера видит SDP и ники. |
+| Room guessing | Use `crypto.randomUUID()` with approximately 122 random bits. |
+| Join spam | Host approval in the full product and per-IP signaling rate limits. |
+| Host impersonation | The first peer in an empty room is the host; later host claims are ignored. |
+| Chat or nickname XSS | Render text only, escape output, and enforce length limits. |
+| Media exposure | The signaling server never proxies RTP. |
+| TURN secret exposure | Keep credentials in self-hosted environment variables. |
+| Signaling interception | Require HTTPS in production. |
 
-**Не обещать:** «сервер ничего не знает». Сервер знает roster, ники, SDP. Медиа — нет.
-
----
-
-## 8. MVP vs полный продукт
-
-### MVP (должен закрываться как отдельный PR / milestone)
-
-- [ ] Лендинг + «Создать звонок»
-- [ ] `/r/[uuid]`, первый = host
-- [ ] getUserMedia + локальное видео
-- [ ] Signaling 1:1 + remote video
-- [ ] Copy link, mute, cam, leave
-- [ ] Тёмная тема shadcn, Vercel-like лендинг и in-call
-- [ ] README: как запустить локально
-- [ ] Компоненты и порты как в §5 (не монолит в `page.tsx`)
-
-### Полный продукт (поверх MVP, без ломания портов)
-
-- [ ] Лобби с ником и превью
-- [ ] Waiting room + апрув host
-- [ ] Mesh до 4
-- [ ] Чат по DataChannel
-- [ ] EncryptionBadge + честный copy
-- [ ] Состояния: denied / full / ended
-- [ ] Docker Compose + опциональный coturn
-- [ ] LICENSE (MIT или Apache-2.0), CONTRIBUTING
-
-### Не сейчас
-
-Запись звонка, экраны share в MVP (можно как быстрый follow-up), виртуальный фон, мобильные приложения, SFU, аккаунты, пароль на комнату (если понадобится — отдельная фича: fragment `#pwd` без сервера).
+Do not claim that the server knows nothing. It knows the roster, nicknames, and SDP. It does not receive peer-to-peer media.
 
 ---
 
-## 9. Критерии готовности
+## 8. Delivery scope
 
-**MVP готов, когда:** два браузера (лучше два устройства / инкогнито) по одной ссылке видят и слышат друг друга за NAT домашнего роутера со STUN; хост может скопировать ссылку одной кнопкой; UI не содержит заглушек «todo chat».
+### MVP
 
-**Полный продукт готов, когда:** гость без апрува не получает медиа; 3 участника с никами и чатом; в UI видно, что медиа зашифровано DTLS-SRTP; `docker compose up` поднимает звонок.
+- [x] Landing page and Create a call action
+- [x] `/r/[uuid]` room route
+- [x] First participant becomes host
+- [x] Explicit mobile-friendly media permission action
+- [x] Local and remote video
+- [x] Same-origin signaling
+- [x] Copy link, microphone, camera, and leave controls
+- [x] Dark shadcn UI
+- [x] Component and port separation
+- [x] Local HTTPS development path for phones
+
+### Full product
+
+- [ ] Lobby with nickname and preview
+- [ ] Waiting room and host approval
+- [ ] Mesh calls with up to four participants
+- [ ] DataChannel chat
+- [ ] Encryption status
+- [ ] Denied, full, and ended states
+- [ ] Docker Compose and optional coturn
+- [ ] License and contribution guide
+
+### Not now
+
+Recording, screen sharing, virtual backgrounds, native mobile apps, an SFU, accounts, billing, and room passwords.
 
 ---
 
-## 10. Порядок реализации
+## 9. Definition of done
 
-1. Каркас Next.js + TS + Tailwind + shadcn + dark theme + Geist.
-2. Доменные типы + порты (пустые in-memory/noop реализации).
-3. Лендинг и генерация room id.
-4. Local media + `VideoTile` / `CallControls`.
-5. Signaling server + 1:1 negotiation.
-6. Полировка MVP UI.
-7. Лобби / ник / approval.
-8. Mesh 3–4.
-9. DataChannel чат.
-10. Docker, TURN, security copy, OSS файлы.
+The MVP is complete when two browsers or devices opening the same link can see and hear each other; the host can copy the link in one action; and the UI contains no placeholders for unfinished features.
+
+The full product is complete when an unapproved guest cannot receive media, three participants can join with nicknames and chat, the UI accurately displays DTLS-SRTP encryption, and `docker compose up` starts a self-hosted instance.
+
+---
+
+## 10. Implementation order
+
+1. Next.js, TypeScript, Tailwind, shadcn, dark theme, and Geist.
+2. Domain types and ports.
+3. Landing page and room ID generation.
+4. Local media, `VideoTile`, and `CallControls`.
+5. Signaling and one-to-one negotiation.
+6. MVP interface polish and mobile HTTPS.
+7. Lobby, nickname, waiting room, and host approval.
+8. Three-to-four-person mesh.
+9. DataChannel chat.
+10. Docker, TURN, security copy, and open-source project files.
