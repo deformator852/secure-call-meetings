@@ -15,9 +15,21 @@ export async function GET(request: Request) {
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
+      const safeEnqueue = (chunk: Uint8Array): boolean => {
+        try {
+          controller.enqueue(chunk);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
       link = {
-        send(message) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
+        send(message: any) {
+          safeEnqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`));
+        },
+        ping() {
+          return safeEnqueue(encoder.encode(`: ping\n\n`));
         },
         close() {
           try {
@@ -34,6 +46,12 @@ export async function GET(request: Request) {
         hub.disconnect(link);
       }
     },
+  });
+
+  request.signal.addEventListener("abort", () => {
+    if (link) {
+      hub.disconnect(link);
+    }
   });
 
   return new Response(stream, {

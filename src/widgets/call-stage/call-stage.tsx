@@ -3,6 +3,7 @@
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { VOICE_OPTIONS } from "@/entities/media/voice";
 import { useCallSession } from "@/features/media-controls/use-call-session";
 import { CallControls } from "@/widgets/call-stage/call-controls";
 import { CallEndedState } from "@/widgets/call-stage/call-ended-state";
@@ -20,10 +21,12 @@ export function CallStage({ roomId }: CallStageProps) {
     remote,
     micOn,
     camOn,
+    voice,
     mediaError,
     join,
     toggleMic,
     toggleCam,
+    setVoice,
     leave,
   } = useCallSession(roomId);
   const copyLink = async () => {
@@ -90,7 +93,11 @@ export function CallStage({ roomId }: CallStageProps) {
             stream={localStream}
             muted
             mirrored
-            label="You"
+            label={
+              voice === "natural"
+                ? "You"
+                : `You · ${VOICE_OPTIONS.find((option) => option.id === voice)?.label}`
+            }
             placeholder={mediaError ?? (phase === "connecting" ? "Connecting…" : "No video")}
           />
           <VideoTile
@@ -109,11 +116,16 @@ export function CallStage({ roomId }: CallStageProps) {
         <CallControls
           micOn={micOn}
           camOn={camOn}
+          voice={voice}
           onToggleMic={toggleMic}
           onToggleCam={toggleCam}
+          onVoiceChange={setVoice}
           onCopyLink={() => void copyLink()}
           onLeave={leave}
         />
+        {!remote && voice !== "natural" ? (
+          <p className="text-xs text-muted-foreground">Speak to preview this voice</p>
+        ) : null}
         <Button
           type="button"
           variant="ghost"

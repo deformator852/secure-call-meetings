@@ -1,3 +1,5 @@
+import { isUuid } from "@/shared/signaling/protocol";
+
 export function createId(): string {
   const cryptoObj = globalThis.crypto;
   if (cryptoObj?.randomUUID) {
@@ -17,4 +19,19 @@ export function createId(): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function getOrCreatePeerId(roomId: string): string {
+  const key = `cbl:peer:${roomId}`;
+  try {
+    const existing = sessionStorage.getItem(key);
+    if (existing && isUuid(existing)) {
+      return existing;
+    }
+    const id = createId();
+    sessionStorage.setItem(key, id);
+    return id;
+  } catch {
+    return createId();
+  }
 }

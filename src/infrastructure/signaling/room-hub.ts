@@ -7,6 +7,7 @@ const MAX_PEERS = 2;
 
 export type SignalLink = {
   send(message: ServerMessage): void;
+  ping(): boolean;
   close(): void;
 };
 
@@ -33,20 +34,35 @@ export class RoomHub {
       return;
     }
 
-    if (this.byLink.has(link) || this.byPeer.has(peerId)) {
-      link.send({ type: "error", message: "already-joined" });
-      return;
-    }
-
+    this.pruneRoom(roomId);
     let room = this.rooms.get(roomId);
     if (!room) {
       room = { id: roomId, hostId: undefined, peers: new Map() };
       this.rooms.set(roomId, room);
     }
 
-    if (room.peers.size >= MAX_PEERS) {
-      link.send({ type: "room-full" });
+    const existing = room.peers.get(peerId);
+    if (existing) {
+      this.replacePeerLink(room, existing, link);
+      const others = [...room.peers.values()]
+        .filter((peer) => peer.peerId !== peerId)
+        .map((peer) => ({ peerId: peer.peerId, role: peer.role }));
+      link.send({ type: "joined", role: existing.role, peers: others });
+      this.logJoin(room, peerId, existing.role, "reconnect");
       return;
+    }
+
+    if (room.peers.size >= MAX_PEERS) {
+      this.pruneRoom(roomId);
+      room = this.rooms.get(roomId);
+      if (!room) {
+        room = { id: roomId, hostId: undefined, peers: new Map() };
+        this.rooms.set(roomId, room);
+      }
+      if (room.peers.size >= MAX_PEERS) {
+        link.send({ type: "room-full" });
+        return;
+      }
     }
 
     const role: PeerRole = room.hostId ? "guest" : "host";
@@ -64,11 +80,13 @@ export class RoomHub {
     this.byPeer.set(peerId, link);
 
     link.send({ type: "joined", role, peers: others });
-
-    for (const peer of room.peers.values()) {
-      if (peer.peerId !== peerId) {
-        peer.link.send({ type: "peer-joined", peerId, role });
+    this.logJoin(room, peerId, role, "join");
+    for (const other of others) {
+      const target = room.peers.get(other.peerId);
+      if (!target) {
+        continue;
       }
+      target.link.send({ type: "peer-joined", peerId, role });
     }
   }
 
@@ -131,6 +149,46 @@ export class RoomHub {
 
     for (const peer of room.peers.values()) {
       peer.link.send({ type: "peer-left", peerId: binding.peerId });
+    }
+  }
+
+  private logJoin(room: Room, peerId: PeerId, role: PeerRole, reason: "join" | "reconnect"): void {
+    const roster = [...room.peers.values()].map((peer) => ({
+      peerId: peer.peerId,
+      role: peer.role,
+    }));
+    console.log("[room] peer entered", {
+      reason,
+      roomId: room.id,
+      peerId,
+      role,
+      count: roster.length,
+      roster,
+    });
+  }
+
+  private replacePeerLink(room: Room, peer: SocketPeer, nextLink: SignalLink): void {
+    const previous = peer.link;
+    this.byLink.delete(previous);
+    peer.link = nextLink;
+    this.byLink.set(nextLink, { roomId: room.id, peerId: peer.peerId });
+    this.byPeer.set(peer.peerId, nextLink);
+    try {
+      previous.close();
+    } catch {
+      // the previous SSE stream may already be dead
+    }
+  }
+
+  private pruneRoom(roomId: RoomId): void {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      return;
+    }
+    for (const peer of [...room.peers.values()]) {
+      if (!peer.link.ping()) {
+        this.disconnect(peer.link);
+      }
     }
   }
 

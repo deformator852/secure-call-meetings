@@ -169,11 +169,26 @@ export class RtcMediaSession implements IMediaSession {
     const senders = pc.getSenders();
     for (const track of stream.getTracks()) {
       const existing = senders.find((sender) => sender.track?.kind === track.kind);
+      const sender = existing ?? pc.addTrack(track, stream);
       if (existing) {
         void existing.replaceTrack(track);
-      } else {
-        pc.addTrack(track, stream);
       }
+      if (track.kind === "audio") {
+        void this.disableAudioDtx(sender);
+      }
+    }
+  }
+
+  private async disableAudioDtx(sender: RTCRtpSender): Promise<void> {
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings.length) {
+        return;
+      }
+      params.encodings = params.encodings.map((encoding) => ({ ...encoding, dtx: false }));
+      await sender.setParameters(params);
+    } catch {
+      // DTX control is optional; ignore unsupported browsers.
     }
   }
 

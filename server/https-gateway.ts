@@ -27,6 +27,12 @@ function proxyWeb(request: IncomingMessage, response: ServerResponse): void {
     (upstream) => {
       response.writeHead(upstream.statusCode ?? 502, upstream.headers);
       upstream.pipe(response);
+      const stop = () => {
+        upstream.destroy();
+        proxy.destroy();
+      };
+      response.on("close", stop);
+      request.on("aborted", stop);
     },
   );
   proxy.on("error", () => {

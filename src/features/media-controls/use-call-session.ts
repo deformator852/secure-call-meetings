@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { VoiceId } from "@/entities/media/voice";
 import type { CallPhase } from "@/entities/room/types";
 import { getRtcConfiguration } from "@/shared/config/ice";
-import { createId } from "@/shared/lib/id";
+import { getOrCreatePeerId } from "@/shared/lib/id";
 import { BrowserLocalMedia } from "@/infrastructure/media/browser-local-media";
 import { HttpSignalingClient } from "@/infrastructure/signaling/http-signaling-client";
 import { RtcMediaSession } from "@/infrastructure/webrtc/rtc-media-session";
@@ -31,18 +32,21 @@ export function useCallSession(roomId: string) {
   const [remote, setRemote] = useState<RemotePeer | undefined>();
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [voice, setVoiceState] = useState<VoiceId>("natural");
   const [mediaError, setMediaError] = useState<string | undefined>();
 
   const localMedia = useRef(new BrowserLocalMedia());
   const signaling = useRef<HttpSignalingClient | undefined>(undefined);
   const session = useRef<RtcMediaSession | undefined>(undefined);
-  const peerId = useRef(createId());
+  const joining = useRef(false);
+  const peerId = useRef(getOrCreatePeerId(roomId));
 
   const leave = useCallback(() => {
     session.current?.dispose();
     session.current = undefined;
     signaling.current?.disconnect();
     signaling.current = undefined;
+    joining.current = false;
     localMedia.current.stop();
     setLocalStream(undefined);
     setRemote(undefined);
@@ -50,11 +54,13 @@ export function useCallSession(roomId: string) {
   }, []);
 
   const join = useCallback(async () => {
-    if (signaling.current) {
+    if (signaling.current || joining.current) {
       return;
     }
+    joining.current = true;
     setPhase("connecting");
     setMediaError(undefined);
+    localMedia.current.setVoice(voice);
 
     let stream: MediaStream | undefined;
     try {
@@ -84,11 +90,11 @@ export function useCallSession(roomId: string) {
           setRole(event.role);
           setPhase("in-call");
           for (const peer of event.peers) {
-            media.addPeer(peer.peerId, event.role === "host");
+            media.addPeer(peer.peerId, true);
           }
           break;
         case "peer-joined":
-          media.addPeer(event.peerId, true);
+          media.addPeer(event.peerId, false);
           break;
         case "peer-left":
           media.removePeer(event.peerId);
@@ -105,11 +111,15 @@ export function useCallSession(roomId: string) {
         case "room-full":
           setPhase("full");
           signalingClient.disconnect();
+          signaling.current = undefined;
+          joining.current = false;
           break;
         case "room-closed":
           setPhase("ended");
           media.dispose();
           signalingClient.disconnect();
+          signaling.current = undefined;
+          joining.current = false;
           localMedia.current.stop();
           setLocalStream(undefined);
           setRemote(undefined);
@@ -121,7 +131,7 @@ export function useCallSession(roomId: string) {
 
     signalingClient.subscribe(onMessage);
     signalingClient.connect(roomId, { peerId: peerId.current });
-  }, [roomId]);
+  }, [roomId, voice]);
 
   useEffect(() => {
     const media = localMedia.current;
@@ -130,6 +140,7 @@ export function useCallSession(roomId: string) {
       session.current = undefined;
       signaling.current?.disconnect();
       signaling.current = undefined;
+      joining.current = false;
       media.stop();
     };
   }, []);
@@ -150,6 +161,15 @@ export function useCallSession(roomId: string) {
     });
   }, []);
 
+  const setVoice = useCallback((next: VoiceId) => {
+    localMedia.current.setVoice(next);
+    setVoiceState(next);
+  }, []);
+
+  useEffect(() => {
+    localMedia.current.setMonitor(!remote && voice !== "natural" && micOn);
+  }, [micOn, remote, voice]);
+
   return {
     phase,
     role,
@@ -157,10 +177,12 @@ export function useCallSession(roomId: string) {
     remote,
     micOn,
     camOn,
+    voice,
     mediaError,
     join,
     toggleMic,
     toggleCam,
+    setVoice,
     leave,
   };
 }

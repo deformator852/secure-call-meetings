@@ -26,7 +26,7 @@ export class HttpSignalingClient implements ISignalingPort {
       }
     });
     source.addEventListener("error", () => {
-      source.close();
+      // EventSource reconnects with the same peer id; the hub replaces the socket.
     });
   }
 
